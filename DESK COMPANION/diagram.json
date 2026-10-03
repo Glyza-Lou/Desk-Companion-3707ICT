@@ -1,0 +1,54 @@
+{
+"version": 1,
+"author": "3707ICT Desk Companion",
+"editor": "wokwi",
+"parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": -4.9, "left": 4.6, "attrs": {} },
+    {
+    "type": "wokwi-dht22",
+    "id": "dht",
+    "top": -153.3,
+    "left": -120.6,
+    "attrs": { "temperature": "23.4" }
+    },
+    {
+    "type": "wokwi-photoresistor-sensor",
+    "id": "ldr",
+    "top": 118.4,
+    "left": -181.6,
+    "attrs": {}
+    },
+    { "type": "wokwi-pir-motion-sensor", "id": "pir", "top": 220, "left": -150, "attrs": {} },
+    { 
+    "type": "wokwi-rgb-led", 
+    "id": "rgb", 
+    "top": 0, 
+    "left": 180, 
+    "attrs": { "common": "cathode" } 
+    },
+    { "type": "wokwi-servo", "id": "servo", "top": -150, "left": 150, "attrs": {} },
+    { "type": "wokwi-buzzer", "id": "buzzer", "top": 150, "left": 150, "attrs": {} }
+],
+"connections": [
+    [ "esp:GND.1", "dht:GND", "black", [ "v0" ] ],
+    [ "esp:3V3", "dht:VCC", "red", [ "v0" ] ],
+    [ "esp:D4", "dht:SDA", "green", [ "v0" ] ],
+    [ "esp:GND.1", "ldr:GND", "black", [ "v0" ] ],
+    [ "esp:3V3", "ldr:VCC", "red", [ "v0" ] ],
+    [ "esp:VP", "ldr:AO", "orange", [ "v0" ] ],
+    [ "esp:GND.1", "pir:GND", "black", [ "v0" ] ],
+    [ "esp:3V3", "pir:VCC", "red", [ "v0" ] ],
+    [ "esp:D5", "pir:OUT", "purple", [ "v0" ] ],
+    [ "esp:GND.1", "rgb:COM", "black", [ "v0" ] ],
+    [ "esp:D18", "rgb:R", "red", [ "v0" ] ],
+    [ "esp:D19", "rgb:G", "green", [ "v0" ] ],
+    [ "esp:D21", "rgb:B", "blue", [ "v0" ] ],
+    [ "esp:GND.1", "servo:GND", "black", [ "v0" ] ],
+    [ "esp:3V3", "servo:V+", "red", [ "v0" ] ],
+    [ "esp:D22", "servo:PWM", "yellow", [ "v0" ] ],
+    [ "esp:GND.1", "buzzer:1", "black", [ "v0" ] ],
+    [ "esp:D23", "buzzer:2", "red", [ "v0" ] ]
+],
+"serialMonitor": { "display": "always" },
+"dependencies": {}
+}
