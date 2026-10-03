@@ -130,7 +130,7 @@ void readSensors() {
   pirState = digitalRead(PIR_PIN);
 }
 
-// Motion sensor starts counting from first motion detected
+// sitting at the desk
 void updatePresence() {
   static unsigned long lastMotionTime = 0;
 
@@ -142,13 +142,14 @@ void updatePresence() {
     }
   }
 
-  // Keeps presence active for 60 seconds so brief motion pulses don't interrupt counting
+  // no motion? nobody at desk
   if (personPresent && (millis() - lastMotionTime > 60000)) {
     personPresent = false;
     presenceStart = 0;
   }
 }
 
+//  AI - Learns temperature over first 10 samples
 void evaluateAdaptiveAI() {
   if (!adaptiveLearning || sampleCount >= 10) return;
   if (currentState == IDLE && personPresent) {
@@ -166,7 +167,7 @@ void evaluateState() {
 
   bool isSittingTooLong = personPresent && ((millis() - presenceStart) >= SITTING_LIMIT_MS);
 
-  // BREAK REMINDER takes top priority over CAUTION and uncomfortable fan modes
+  // break reminder is priority
   if (isSittingTooLong) {
     changeState(BREAK_REMINDER);
   } else if (temp >= emergencyThreshold) {
@@ -186,28 +187,28 @@ void changeState(State newState) {
   switch (currentState) {
     case IDLE:
       pollInterval = 2000;
-      setColor(0, 255, 0);    // Green
+      setColor(0, 255, 0);  // Green - idle
       noTone(BUZZER_PIN);
       fanServo.write(0);
       break;
     case CAUTION:
       pollInterval = 500;
-      setColor(255, 255, 0);  // Yellow
+      setColor(255, 255, 0);  // Yellow - caution
       noTone(BUZZER_PIN);
       break;
     case EMERGENCY:
       pollInterval = 100;
-      setColor(255, 0, 0);    // Red
+      setColor(255, 0, 0);  // Red - emergency, activate buzzer (loud)
       tone(BUZZER_PIN, 400);
       break;
     case BREAK_REMINDER:
       pollInterval = 1000;
-      setColor(0, 0, 255);    // Blue - break reminder
+      setColor(0, 0, 255);  // Blue - break time, activate buzzer
       tone(BUZZER_PIN, 200, 100);
       break;
     case FAILSAFE:
       pollInterval = 2000;
-      setColor(255, 0, 255);  // Purple
+      setColor(255, 0, 255);  // Purple - pin disconnected
       noTone(BUZZER_PIN);
       fanServo.write(0);
       break;
