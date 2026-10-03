@@ -9,7 +9,7 @@ const char* password = "";
 
 // THINGSPEAK HTTP SETTINGS
 const char* serverName = "http://api.thingspeak.com/update";
-const char* writeAPIKey = "QZX5E9G0MAVD4XRG"; // API Key from ThingSpeak
+const char* writeAPIKey = "QZX5E9G0MAVD4XRG"; 
 
 // ESP32 PIN ASSIGNMENTS
 #define DHT_PIN     4
@@ -29,8 +29,8 @@ const char* writeAPIKey = "QZX5E9G0MAVD4XRG"; // API Key from ThingSpeak
 #define SITTING_LIMIT_MS  10000 // Break Reminder - set to 10s for testing; would usually be 30 minutes or 1800000
 
 // GLOBAL VARIABLES
-DHT dht(DHT_PIN, DHT_TYPE);  // DHT sensor activates
-Servo fanServo;  // fan activates
+DHT dht(DHT_PIN, DHT_TYPE);
+Servo fanServo;
 
 enum State { IDLE, CAUTION, EMERGENCY, BREAK_REMINDER, FAILSAFE };
 State currentState = IDLE;
@@ -72,7 +72,6 @@ void setup() {
   Serial.begin(115200);
   delay(3000);
 
-  // input or output
   pinMode(PIR_PIN, INPUT);
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
@@ -83,7 +82,7 @@ void setup() {
   fanServo.attach(SERVO_PIN);
   fanServo.write(0);
 
-  setColor(0, 255, 0);  // green light default
+  setColor(0, 255, 0);  // Green light default
   noTone(BUZZER_PIN);
 
   connectWiFi();
@@ -94,14 +93,12 @@ void setup() {
 void loop() {
   if (WiFi.status() != WL_CONNECTED) connectWiFi();
 
-  // check sensors
   if (millis() - lastPoll >= pollInterval) {
     lastPoll = millis();
     readSensors();
     updatePresence();
     evaluateAdaptiveAI();
 
-    // sensor disconnected? enter failsafe
     if (!sensorOK) {
       changeState(FAILSAFE);
     } else {
@@ -111,7 +108,6 @@ void loop() {
 
   handleActuators();
 
-  // thingspeak sending data every 20 seconds
   if (millis() - lastHttp >= 20000) {
     lastHttp = millis();
     sendHTTPData();
@@ -122,7 +118,6 @@ void readSensors() {
   float t = dht.readTemperature();
   float h = dht.readHumidity();
 
-  // dht working correctly?
   if (isnan(t) || isnan(h)) {
     sensorOK = false;
   } else {
@@ -135,7 +130,7 @@ void readSensors() {
   pirState = digitalRead(PIR_PIN);
 }
 
-// sitting at the desk
+// Motion sensor starts counting from first motion detected
 void updatePresence() {
   static unsigned long lastMotionTime = 0;
 
@@ -147,14 +142,13 @@ void updatePresence() {
     }
   }
 
-  // no motion? nobody at desk
-  if (personPresent && (millis() - lastMotionTime > 15000)) {
+  // Keeps presence active for 60 seconds so brief motion pulses don't interrupt counting
+  if (personPresent && (millis() - lastMotionTime > 60000)) {
     personPresent = false;
     presenceStart = 0;
   }
 }
 
-//  AI - Learns temperature over first 10 samples
 void evaluateAdaptiveAI() {
   if (!adaptiveLearning || sampleCount >= 10) return;
   if (currentState == IDLE && personPresent) {
@@ -165,7 +159,6 @@ void evaluateAdaptiveAI() {
 }
 
 void evaluateState() {
-  // apply hysteresis so system dont freak out at threshold line
   float cautionThreshold = (lastState == CAUTION || lastState == EMERGENCY) ? 
       (TEMP_CAUTION - HYSTERESIS) : TEMP_CAUTION;
   float emergencyThreshold = (lastState == EMERGENCY) ? 
@@ -173,12 +166,13 @@ void evaluateState() {
 
   bool isSittingTooLong = personPresent && ((millis() - presenceStart) >= SITTING_LIMIT_MS);
 
-  if (temp >= emergencyThreshold) {
+  // BREAK REMINDER takes top priority over CAUTION and uncomfortable fan modes
+  if (isSittingTooLong) {
+    changeState(BREAK_REMINDER);
+  } else if (temp >= emergencyThreshold) {
     changeState(EMERGENCY);
   } else if (temp >= cautionThreshold || lightRaw > 2500) {
     changeState(CAUTION);
-  } else if (isSittingTooLong) {
-    changeState(BREAK_REMINDER);
   } else {
     changeState(IDLE);
   }
@@ -192,37 +186,38 @@ void changeState(State newState) {
   switch (currentState) {
     case IDLE:
       pollInterval = 2000;
-      setColor(0, 255, 0);  // Green - idle
+      setColor(0, 255, 0);    // Green
       noTone(BUZZER_PIN);
       fanServo.write(0);
       break;
     case CAUTION:
       pollInterval = 500;
-      setColor(255, 255, 0);  // Yellow - caution
+      setColor(255, 255, 0);  // Yellow
       noTone(BUZZER_PIN);
       break;
     case EMERGENCY:
       pollInterval = 100;
-      setColor(255, 0, 0);  // Red - emergency, activate buzzer (really loud)
+      setColor(255, 0, 0);    // Red
       tone(BUZZER_PIN, 400);
       break;
     case BREAK_REMINDER:
       pollInterval = 1000;
-      setColor(0, 0, 255);  // Blue - break time, buzzer sound
+      setColor(0, 0, 255);    // Blue - break reminder
       tone(BUZZER_PIN, 200, 100);
       break;
     case FAILSAFE:
       pollInterval = 2000;
-      setColor(255, 0, 255);  // Purple - pin disconnected
+      setColor(255, 0, 255);  // Purple
       noTone(BUZZER_PIN);
       fanServo.write(0);
       break;
   }
 }
 
-// controls physical actuators like sweeping the servo fan back and forth
 void handleActuators() {
-  if (currentState == CAUTION || currentState == EMERGENCY) {
+  // Fan continues sweeping in CAUTION, EMERGENCY, or BREAK_REMINDER if uncomfortable
+  if (currentState == CAUTION || currentState == EMERGENCY || 
+    (currentState == BREAK_REMINDER && temp >= TEMP_CAUTION)) {
     if (millis() - lastServoSweep >= 20) {
       lastServoSweep = millis();
       servoAngle += servoDirection;
@@ -232,14 +227,12 @@ void handleActuators() {
   }
 }
 
-// lights on or off
 void setColor(int r, int g, int b) {
   digitalWrite(LED_R, r > 0 ? HIGH : LOW);
   digitalWrite(LED_G, g > 0 ? HIGH : LOW);
   digitalWrite(LED_B, b > 0 ? HIGH : LOW);
 }
 
-// sends it to the thingspeak via http get (string broken up by fields so its not a long line)
 void sendHTTPData() {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
@@ -259,7 +252,6 @@ void sendHTTPData() {
   }
 }
 
-//  handler for wifi stability
 void connectWiFi() {
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
